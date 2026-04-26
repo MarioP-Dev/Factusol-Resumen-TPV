@@ -16,16 +16,18 @@ from PyInstaller.utils.hooks import collect_all
 root = Path(SPECPATH).resolve()
 
 pl_datas, pl_binaries, pl_hidden = collect_all("polars")
+extra_datas = [
+    (str(root / "lib"), "lib"),
+]
+access_reader_class = root / "AccessReader.class"
+if access_reader_class.exists():
+    extra_datas.append((str(access_reader_class), "."))
 
 a = Analysis(
     [str(root / "ui.py")],
     pathex=[str(root)],
     binaries=pl_binaries,
-    datas=pl_datas
-    + [
-        (str(root / "lib"), "lib"),
-        (str(root / "datos"), "datos"),
-    ],
+    datas=pl_datas + extra_datas,
     hiddenimports=pl_hidden,
     hookspath=[],
     hooksconfig={},
