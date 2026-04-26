@@ -1,0 +1,74 @@
+# Empaquetado ResumenTPV con PyInstaller (onedir) en Windows y macOS.
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pyinstaller:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: ResumenTPV-Windows-x64
+          - os: macos-14
+            name: ResumenTPV-macOS-arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: uv sync, JARs y build
+        shell: bash
+        run: |
+          set -e
+          uv sync --extra build
+          uv run python scripts/fetch_maven_jars.py
+          mkdir -p datos
+          uv run pyinstaller ResumenTPV.spec
+
+      - name: Comprimir carpeta (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/ResumenTPV -DestinationPath dist/bundle.zip -Force
+
+      - name: Comprimir .app o carpeta (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -e
+          cd dist
+          if [ -d ResumenTPV.app ]; then
+            zip -ry9 ../bundle.zip ResumenTPV.app
+          else
+            zip -ry9 ../bundle.zip ResumenTPV
+          fi
+
+      - name: Subir zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: dist/bundle.zip
+          if-no-files-found: error

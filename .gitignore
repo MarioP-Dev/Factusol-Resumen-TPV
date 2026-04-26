@@ -1,0 +1,56 @@
+# =========================
+# Python / uv
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.python-version
+.venv/
+venv/
+env/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# Build artifacts
+# =========================
+build/
+dist/
+*.egg-info/
+
+# PyInstaller
+*.spec.bak
+*.manifest
+*.pkg
+
+# =========================
+# OS / Editor noise
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# =========================
+# Project-local config/state
+# =========================
+resumentpv_config.json
+cierreangeles_config.json
+
+# =========================
+# Local databases (keep folder via datos/.gitkeep)
+# =========================
+datos/*.accdb
+datos/*.mdb

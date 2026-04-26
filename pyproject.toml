@@ -1,0 +1,14 @@
+[project]
+name = "resumentpv"
+version = "0.1.0"
+description = "Resumen diario de vales, cobros y ventas desde bases FactuSol/TPVSol (Access) con Polars y UCanAccess."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "polars>=1.40.1",
+]
+
+[project.optional-dependencies]
+build = [
+    "pyinstaller>=6.0",
+]
