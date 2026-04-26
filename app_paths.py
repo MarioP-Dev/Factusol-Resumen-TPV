@@ -25,6 +25,7 @@ import os
 import platform
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -32,8 +33,19 @@ def is_frozen() -> bool:
     return bool(getattr(sys, "frozen", False))
 
 
+def _is_dir_writable(path: Path) -> bool:
+    """Comprueba escribibilidad real de directorio (no solo permisos teóricos)."""
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(prefix=".rwtest-", dir=path, delete=True):
+            pass
+        return True
+    except OSError:
+        return False
+
+
 def app_dir() -> Path:
-    """Directorio escribible: junto al .exe / proyecto; en macOS .app, la carpeta que contiene el bundle (p. ej. USB)."""
+    """Directorio escribible para config (junto al binario si es posible)."""
     if is_frozen():
         exe = Path(sys.executable).resolve()
         if sys.platform == "darwin":
@@ -42,12 +54,23 @@ def app_dir() -> Path:
                 if seg.endswith(".app"):
                     bundle = Path(*parts[: i + 1])
                     parent = bundle.parent
-                    # No forzar “al lado del .app” en /Applications; ahí se usa Contents/MacOS.
-                    if str(parent) not in ("/", "/Applications", "/System/Applications"):
+                    # Si la app está fuera de /Applications y la carpeta es escribible, usarla.
+                    if (
+                        str(parent) not in ("/", "/Applications", "/System/Applications")
+                        and _is_dir_writable(parent)
+                    ):
                         return parent
                     break
+            # App Translocation / .app en zona no escribible: usar App Support del usuario.
+            fallback = Path.home() / "Library" / "Application Support" / "ResumenTPV"
+            fallback.mkdir(parents=True, exist_ok=True)
+            return fallback
+        if _is_dir_writable(exe.parent):
             return exe.parent
-        return exe.parent
+        # Fallback genérico para instalaciones no escribibles.
+        fallback = Path.home() / ".resumentpv"
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
     return Path(__file__).resolve().parent
 
 
