@@ -6,47 +6,57 @@ Herramienta de escritorio **Windows** para consultar la base Access de **FactuSo
 - **Ventas por método de pago** (cobros)
 - **Artículos vendidos** (líneas de facturación)
 
-Lectura con **Microsoft ACE OLEDB** (sin Java ni ODBC externo de terceros). Interfaz **WinForms** (.NET 8).
+Lectura con **Microsoft ACE OLEDB**. Interfaz **WinForms** (.NET 8). Distribución con **Velopack** (instalador + actualizaciones OTA desde GitHub Releases).
 
 > Rama `csharp-rewrite`: reescritura en C#. La versión Python + UCanAccess permanece en `main`.
 
 ## Requisitos (PC de tienda)
 
-- **Windows** 10/11 (x64 recomendado)
-- **.NET 8 Desktop Runtime** (o publique *self-contained*; véase abajo)
-- **Microsoft Access Database Engine (ACE)** 2016 o posterior, misma arquitectura que la app (x64)
+- **Windows** 10/11 (x64)
+- **Microsoft Access Database Engine (ACE)** 2016 o posterior, x64 (el instalador de la app ya incluye el runtime .NET)
 
 Descarga ACE (Microsoft): busque «Microsoft Access Database Engine Redistributable».
+
+## Instalar (tienda)
+
+1. Abra [Releases](https://github.com/MarioP-Dev/Factusol-Resumen-TPV/releases/latest).
+2. Descargue **`ResumenTPV-win-Setup.exe`** (o el `*Setup.exe` del release).
+3. Ejecute el instalador.
+4. Arranque ResumenTPV, elija el `.accdb` / `.mdb` y pulse «Usar y guardar».
+
+La configuración se guarda en `%LocalAppData%\ResumenTPV\` (no se pierde al actualizar).
+
+### Actualizaciones OTA
+
+Con la app instalada, al arrancar comprueba GitHub Releases. También puede usar el botón **«Buscar actualizaciones»**. Si hay versión nueva, descarga, instala y reinicia sola.
 
 ## Desarrollo
 
 ```bash
 dotnet restore ResumenTPV.sln
 dotnet build ResumenTPV.sln -c Release
-```
-
-Ejecutar **solo en Windows**:
-
-```bash
 dotnet run --project src/ResumenTPV -c Release
 ```
 
 Desde macOS se puede restaurar y compilar el targeting Windows (`EnableWindowsTargeting` en `Directory.Build.props`), pero **no** se puede ejecutar ni probar OleDb/ACE.
 
-## Configuración
+## Publicar un release (instalador + OTA)
 
-La ruta al `.accdb` / `.mdb` se guarda en `resumentpv_config.json` junto al ejecutable. Si existía el legado `cierreangeles_config.json`, se lee hasta que se vuelva a guardar.
+1. Suba la `<Version>` en `src/ResumenTPV/ResumenTPV.csproj` (p. ej. `0.3.0`).
+2. Haga commit y push.
+3. En GitHub: **Releases → Draft a new release**, tag `v0.3.0` (debe coincidir con la versión del csproj), publique.
+4. Actions empaqueta con Velopack y sube a ese release: `ResumenTPV-win-Setup.exe`, `*.nupkg`, `releases.win.json`.
 
-## Publicar portable (carpeta)
-
-En un PC Windows (o en CI):
+Localmente (Windows, con .NET 8 y `vpk`):
 
 ```bash
-dotnet publish src/ResumenTPV -c Release -r win-x64 --self-contained true -o dist/ResumenTPV
+dotnet tool install -g vpk --version 1.2.158
+dotnet publish src/ResumenTPV -c Release -r win-x64 --self-contained true -o publish
+vpk pack --packId ResumenTPV --packVersion 0.3.0 --packDir publish --mainExe ResumenTPV.exe --runtime win-x64 --outputDir releases
 ```
 
-Copie la carpeta `dist/ResumenTPV` al USB o al PC de destino. Sigue haciendo falta ACE instalado en el sistema (o empaquetarlo aparte).
+El instalador queda en `releases/ResumenTPV-win-Setup.exe`.
 
-## Build en GitHub Actions
+## Velopack
 
-Push a esta rama / `main`: job en **windows-latest** que publica el zip `ResumenTPV-Windows-x64`.
+[Velopack](https://velopack.io/) es **open source (MIT)** y gratuito. Sustituye el modelo portable por instalador + updates.

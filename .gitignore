@@ -19,6 +19,8 @@ TestResults/
 # =========================
 build/
 dist/
+publish/
+releases/
 
 # =========================
 # OS / Editor noise
@@ -27,6 +29,7 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
+.vs/
 
 # =========================
 # Project-local config/state

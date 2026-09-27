@@ -10,12 +10,19 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <RootNamespace>ResumenTPV</RootNamespace>
     <AssemblyName>ResumenTPV</AssemblyName>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Description>Resumen diario de vales, cobros y ventas desde bases FactuSol/TPVSol (Access).</Description>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ScottPlot.WinForms" Version="5.1.59" />
     <PackageReference Include="System.Data.OleDb" Version="8.0.1" />
+    <PackageReference Include="Velopack" Version="1.2.158" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\Logo_black.png" />
+    <EmbeddedResource Include="Assets\Logo_white.png" />
   </ItemGroup>
 
 </Project>

@@ -3,13 +3,14 @@ using System.Text.Json;
 namespace ResumenTPV;
 
 /// <summary>
-/// Persistencia de la ruta a la base Access junto al ejecutable (o legado junto al proyecto).
+/// Persistencia de la ruta a la base Access en LocalAppData (sobrevive a actualizaciones Velopack).
 /// </summary>
 public static class AppConfig
 {
     public const string ConfigFileName = "resumentpv_config.json";
     public const string LegacyConfigFileName = "cierreangeles_config.json";
 
+    /// <summary>Carpeta del ejecutable (se reemplaza en cada update de Velopack).</summary>
     public static string AppDirectory
     {
         get
@@ -21,31 +22,66 @@ public static class AppConfig
         }
     }
 
-    private static string ConfigPathForRead()
+    /// <summary>Datos de usuario que deben persistir entre versiones.</summary>
+    public static string DataDirectory
     {
-        var primary = Path.Combine(AppDirectory, ConfigFileName);
-        if (File.Exists(primary))
+        get
         {
-            return primary;
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                AppUpdates.PackId);
+            Directory.CreateDirectory(dir);
+            return dir;
         }
-
-        var legacy = Path.Combine(AppDirectory, LegacyConfigFileName);
-        return File.Exists(legacy) ? legacy : primary;
     }
 
-    private static string ConfigPathForWrite() => Path.Combine(AppDirectory, ConfigFileName);
+    private static string ConfigPath => Path.Combine(DataDirectory, ConfigFileName);
+
+    private static void MigrateLegacyConfigIfNeeded()
+    {
+        if (File.Exists(ConfigPath))
+        {
+            return;
+        }
+
+        foreach (var candidate in new[]
+                 {
+                     Path.Combine(AppDirectory, ConfigFileName),
+                     Path.Combine(AppDirectory, LegacyConfigFileName),
+                     Path.Combine(Environment.CurrentDirectory, ConfigFileName),
+                     Path.Combine(Environment.CurrentDirectory, LegacyConfigFileName),
+                 })
+        {
+            if (!File.Exists(candidate))
+            {
+                continue;
+            }
+
+            try
+            {
+                File.Copy(candidate, ConfigPath, overwrite: false);
+            }
+            catch
+            {
+                // Si no se puede migrar, se pedirá la ruta al usuario.
+            }
+
+            return;
+        }
+    }
 
     public static string? GetSavedDatabasePath()
     {
-        var path = ConfigPathForRead();
-        if (!File.Exists(path))
+        MigrateLegacyConfigIfNeeded();
+
+        if (!File.Exists(ConfigPath))
         {
             return null;
         }
 
         try
         {
-            var json = File.ReadAllText(path);
+            var json = File.ReadAllText(ConfigPath);
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.TryGetProperty("database_path", out var prop)
                 && prop.ValueKind == JsonValueKind.String)
@@ -77,9 +113,25 @@ public static class AppConfig
             throw new FileNotFoundException($"No existe o no es un fichero: {full}", full);
         }
 
+        Directory.CreateDirectory(DataDirectory);
         var payload = JsonSerializer.Serialize(
             new Dictionary<string, string> { ["database_path"] = full },
             new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(ConfigPathForWrite(), payload + Environment.NewLine);
+        File.WriteAllText(ConfigPath, payload + Environment.NewLine);
+    }
+
+    public static void ClearDatabasePath()
+    {
+        try
+        {
+            if (File.Exists(ConfigPath))
+            {
+                File.Delete(ConfigPath);
+            }
+        }
+        catch (Exception)
+        {
+            // Si no se puede borrar, al menos la UI limpiará el estado en memoria.
+        }
     }
 }
