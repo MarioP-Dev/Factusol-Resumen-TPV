@@ -1,0 +1,6 @@
+<Project>
+  <!-- Permite restaurar/compilar el targeting Windows desde macOS (dev); la app solo corre en Windows. -->
+  <PropertyGroup>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+</Project>

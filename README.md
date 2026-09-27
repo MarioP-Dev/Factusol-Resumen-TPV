@@ -1,45 +1,52 @@
 # ResumenTPV
 
-Herramienta de escritorio para **consultar la base Access** de **FactuSol / TPVSol** y ver en una sola pantalla, por fecha:
+Herramienta de escritorio **Windows** para consultar la base Access de **FactuSol / TPVSol** y ver en una sola pantalla, por fecha:
 
 - **Vales creados**
 - **Ventas por método de pago** (cobros)
 - **Artículos vendidos** (líneas de facturación)
 
-La lectura es **multiplataforma** (incl. macOS y Windows) **sin ODBC**: un **JRE** ejecuta **UCanAccess** (JDBC); el programa Java emite CSV por stdout y **Polars** lo carga en tablas (interfaz **Tkinter** en `ui.py`).
+Lectura con **Microsoft ACE OLEDB** (sin Java ni ODBC externo de terceros). Interfaz **WinForms** (.NET 8).
 
-## Requisitos
+> Rama `csharp-rewrite`: reescritura en C#. La versión Python + UCanAccess permanece en `main`.
 
-- **Java** (JRE 17+ recomendado): en el `PATH`, `JAVA_HOME`, o carpeta `jre/` portátil junto al ejecutable (véase `PORTABLE.md`).
-- **Python 3.13+** y dependencias (`uv sync`).
+## Requisitos (PC de tienda)
 
-## JARs (`lib/`)
+- **Windows** 10/11 (x64 recomendado)
+- **.NET 8 Desktop Runtime** (o publique *self-contained*; véase abajo)
+- **Microsoft Access Database Engine (ACE)** 2016 o posterior, misma arquitectura que la app (x64)
 
-Los `.jar` de UCanAccess y dependencias van en **`lib/`** (ver `query_runner.py` para nombres exactos). Puedes obtenerlos desde [Maven Central](https://search.maven.org/) o el paquete de UCanAccess.
+Descarga ACE (Microsoft): busque «Microsoft Access Database Engine Redistributable».
 
-## Clase Java
-
-En la raíz del proyecto, compilar `AccessReader.java` con el classpath adecuado (separador `:` o `;` según SO), como en versiones anteriores del README.
-
-## Ejecutar la UI
+## Desarrollo
 
 ```bash
-uv sync
-python ui.py
+dotnet restore ResumenTPV.sln
+dotnet build ResumenTPV.sln -c Release
 ```
 
-O consola: `python main.py`.
+Ejecutar **solo en Windows**:
+
+```bash
+dotnet run --project src/ResumenTPV -c Release
+```
+
+Desde macOS se puede restaurar y compilar el targeting Windows (`EnableWindowsTargeting` en `Directory.Build.props`), pero **no** se puede ejecutar ni probar OleDb/ACE.
 
 ## Configuración
 
-La ruta a la `.accdb` se guarda en **`resumentpv_config.json`** junto al proyecto o al ejecutable. Si venías de un fork antiguo, también se lee **`cierreangeles_config.json`** hasta que guardes de nuevo la ruta.
+La ruta al `.accdb` / `.mdb` se guarda en `resumentpv_config.json` junto al ejecutable. Si existía el legado `cierreangeles_config.json`, se lee hasta que se vuelva a guardar.
 
-## Empaquetado portable
+## Publicar portable (carpeta)
 
-`uv sync --extra build` y `uv run pyinstaller ResumenTPV.spec` — detalles en **`PORTABLE.md`**.
+En un PC Windows (o en CI):
+
+```bash
+dotnet publish src/ResumenTPV -c Release -r win-x64 --self-contained true -o dist/ResumenTPV
+```
+
+Copie la carpeta `dist/ResumenTPV` al USB o al PC de destino. Sigue haciendo falta ACE instalado en el sistema (o empaquetarlo aparte).
 
 ## Build en GitHub Actions
 
-En cada push a `main`/`master` o PR, se construye con PyInstaller en **Windows** y **macOS (ARM)** y se publica un **artefacto zip** (`.app` o carpeta `ResumenTPV` según plataforma). Requiere el script `scripts/fetch_maven_jars.py` y, para `ucanload`, el fichero `scripts/ucanload.jar.b64` en el repositorio.
-
-Puede desactivar o ajustar el workflow en **`.github/workflows/build.yml`**.
+Push a esta rama / `main`: job en **windows-latest** que publica el zip `ResumenTPV-Windows-x64`.
