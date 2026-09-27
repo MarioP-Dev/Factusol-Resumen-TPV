@@ -1,45 +1,63 @@
 # ResumenTPV
 
-Herramienta de escritorio para **consultar la base Access** de **FactuSol / TPVSol** y ver en una sola pantalla, por fecha:
+Herramienta de escritorio **Windows** para consultar la base Access de **FactuSol / TPVSol** y ver en una sola pantalla, por fecha:
 
 - **Vales creados**
 - **Ventas por método de pago** (cobros)
 - **Artículos vendidos** (líneas de facturación)
 
-La lectura es **multiplataforma** (incl. macOS y Windows) **sin ODBC**: un **JRE** ejecuta **UCanAccess** (JDBC); el programa Java emite CSV por stdout y **Polars** lo carga en tablas (interfaz **Tkinter** en `ui.py`).
+Lectura con **Microsoft ACE OLEDB**. Interfaz **WinForms** (.NET 8). Distribución con **Velopack** (instalador + actualizaciones OTA desde GitHub Releases).
 
-## Requisitos
+> Rama `csharp-rewrite`: reescritura en C#. La versión Python + UCanAccess permanece en `main`.
 
-- **Java** (JRE 17+ recomendado): en el `PATH`, `JAVA_HOME`, o carpeta `jre/` portátil junto al ejecutable (véase `PORTABLE.md`).
-- **Python 3.13+** y dependencias (`uv sync`).
+## Requisitos (PC de tienda)
 
-## JARs (`lib/`)
+- **Windows** 10/11 (x64)
+- **Microsoft Access Database Engine (ACE)** 2016 o posterior, x64 (el instalador de la app ya incluye el runtime .NET)
 
-Los `.jar` de UCanAccess y dependencias van en **`lib/`** (ver `query_runner.py` para nombres exactos). Puedes obtenerlos desde [Maven Central](https://search.maven.org/) o el paquete de UCanAccess.
+Descarga ACE (Microsoft): busque «Microsoft Access Database Engine Redistributable».
 
-## Clase Java
+## Instalar (tienda)
 
-En la raíz del proyecto, compilar `AccessReader.java` con el classpath adecuado (separador `:` o `;` según SO), como en versiones anteriores del README.
+1. Abra [Releases](https://github.com/MarioP-Dev/Factusol-Resumen-TPV/releases/latest).
+2. Descargue **`ResumenTPV-win-Setup.exe`**.
+3. Ejecute el asistente (bienvenida → términos → acceso directo opcional → instalar).
+4. Arranque ResumenTPV, elija el `.accdb` / `.mdb` y pulse «Usar y guardar».
 
-## Ejecutar la UI
+La configuración se guarda en `%LocalAppData%\MarioP.Dev\ResumenTPV\` (fuera de la carpeta del instalador Velopack, para no bloquear Setup).
+
+### Actualizaciones OTA
+
+Con la app instalada, al arrancar comprueba GitHub Releases. También puede usar el botón **«Buscar actualizaciones»**. Si hay versión nueva, descarga, instala y reinicia sola.
+
+## Desarrollo
 
 ```bash
-uv sync
-python ui.py
+dotnet restore ResumenTPV.sln
+dotnet build ResumenTPV.sln -c Release
+dotnet run --project src/ResumenTPV -c Release
 ```
 
-O consola: `python main.py`.
+Desde macOS se puede restaurar y compilar el targeting Windows (`EnableWindowsTargeting` en `Directory.Build.props`), pero **no** se puede ejecutar ni probar OleDb/ACE.
 
-## Configuración
+## Publicar un release (instalador + OTA)
 
-La ruta a la `.accdb` se guarda en **`resumentpv_config.json`** junto al proyecto o al ejecutable. Si venías de un fork antiguo, también se lee **`cierreangeles_config.json`** hasta que guardes de nuevo la ruta.
+1. Suba la `<Version>` en `src/ResumenTPV/ResumenTPV.csproj` (p. ej. `0.3.0`).
+2. Haga commit y push.
+3. En GitHub: **Releases → Draft a new release**, tag `v0.3.0` (debe coincidir con la versión del csproj), publique.
+4. Actions empaqueta con Velopack y sube a ese release: `ResumenTPV-win-Setup.exe`, `*.nupkg`, `releases.win.json`.
 
-## Empaquetado portable
+Localmente (Windows, con .NET 8 y `vpk`):
 
-`uv sync --extra build` y `uv run pyinstaller ResumenTPV.spec` — detalles en **`PORTABLE.md`**.
+```powershell
+dotnet tool install -g vpk --version 1.2.158
+powershell -ExecutionPolicy Bypass -File scripts/pack.ps1
+```
 
-## Build en GitHub Actions
+El instalador de distribución queda en `releases/ResumenTPV-win-Setup.exe` (asistente con términos y opción de acceso directo). Los `.nupkg` del mismo directorio alimentan las actualizaciones OTA.
 
-En cada push a `main`/`master` o PR, se construye con PyInstaller en **Windows** y **macOS (ARM)** y se publica un **artefacto zip** (`.app` o carpeta `ResumenTPV` según plataforma). Requiere el script `scripts/fetch_maven_jars.py` y, para `ucanload`, el fichero `scripts/ucanload.jar.b64` en el repositorio.
+Icono: `src/ResumenTPV/Assets/app.ico`. Términos: `installer/TERMINOS.md`.
 
-Puede desactivar o ajustar el workflow en **`.github/workflows/build.yml`**.
+## Velopack
+
+[Velopack](https://velopack.io/) es **open source (MIT)** y gratuito. Sustituye el modelo portable por instalador + updates.

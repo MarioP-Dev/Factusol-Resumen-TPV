@@ -1,39 +1,27 @@
 # =========================
-# Python / uv
+# .NET
 # =========================
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.so
-.python-version
-.venv/
-venv/
-env/
-.mypy_cache/
-.pytest_cache/
-.ruff_cache/
-.hypothesis/
-.coverage
-.coverage.*
-htmlcov/
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+TestResults/
+*.nupkg
+*.snupkg
 
 # =========================
-# Jupyter
-# =========================
-.ipynb_checkpoints/
-
-# =========================
-# Build artifacts
+# Build output / publish
 # =========================
 build/
 dist/
-*.egg-info/
-
-# PyInstaller
-*.spec.bak
-*.manifest
-*.pkg
+publish/
+publish-setup/
+releases/
 
 # =========================
 # OS / Editor noise
@@ -42,6 +30,7 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
+.vs/
 
 # =========================
 # Project-local config/state

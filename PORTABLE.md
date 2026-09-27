@@ -1,69 +1,59 @@
-# Distribución portable (USB / carpeta copiable)
+# Instalación y distribución (Velopack)
 
-## Qué incluye
+ResumenTPV se distribuye como **asistente de instalación Windows** (`ResumenTPV-win-Setup.exe`) con actualizaciones OTA desde GitHub Releases. Ya no se recomienda copiar una carpeta portable a USB como método principal.
 
-- **Python + Polars + UI** empaquetados con PyInstaller (carpeta `dist/`, no requiere instalar Python en el PC de destino).
-- **Configuración** (`resumentpv_config.json`) y **ruta a la base** guardadas en `app_dir()`: **al lado del ejecutable**, de modo que al copiar la carpeta se mantienen los ajustes.
-- **Java (JRE)** no va dentro del build: o está instalado en el sistema, o descomprima un JRE portátil **junto al programa** (véase abajo).
+## Requisitos en el PC de destino
 
-## Generar el paquete
+- Windows 10/11 x64
+- **Microsoft Access Database Engine (ACE)** x64 (Office suele traerlo; si no, el redistribuible de Microsoft)
+- El runtime .NET 8 va **incluido** en el paquete self-contained
 
-```bash
-cd /ruta/al/clon/resumentpv
-uv sync --extra build
-uv run pyinstaller ResumenTPV.spec
+## Instalar en tienda
+
+1. Descargue `ResumenTPV-win-Setup.exe` del [último release](https://github.com/MarioP-Dev/Factusol-Resumen-TPV/releases/latest).
+2. Ejecute el asistente: bienvenida → **aceptar términos** → opciones (acceso directo en escritorio) → instalar.
+3. Abra ResumenTPV → Examinar → elija el `.accdb` / `.mdb` → «Usar y guardar».
+
+La ruta de la base queda en `%LocalAppData%\MarioP.Dev\ResumenTPV\resumentpv_config.json` (aparte de la instalación, para no interferir con Velopack).
+
+## Actualizaciones
+
+- Automáticas al arrancar (aviso si hay versión nueva)
+- Manuales: botón **«Buscar actualizaciones»**
+
+Fuente: releases del repo público `MarioP-Dev/Factusol-Resumen-TPV` (API de GitHub, sin token).
+
+## Generar el instalador en local
+
+```powershell
+dotnet tool install -g vpk --version 1.2.158
+powershell -ExecutionPolicy Bypass -File scripts/pack.ps1
 ```
 
-- **macOS:** en `dist/` tendrá `ResumenTPV.app` (doble clic) y la carpeta `ResumenTPV/` con el binario y `_internal/`.
-- **Windows:** genere en un PC Windows con el mismo comando; el `.spec` es multiplataforma (ajuste rutas si hace falta).
+El script:
 
-## Hacerlo “100 % portable” (Java sin instalar)
+1. Publica la app (`dotnet publish`)
+2. Empaqueta con Velopack (`vpk pack`, atajos solo en menú Inicio)
+3. Compila el **asistente** (`ResumenTPV.Setup`) incrustando el Setup interno de Velopack
+4. Deja en `releases/` el `ResumenTPV-win-Setup.exe` de distribución + nupkg OTA
 
-1. Descargue un **JRE 17+** en formato **archive** (zip) de [Adoptium](https://adoptium.net/) u otra distribución.
-2. Descomprima y renombre la carpeta del JRE a **`jre`**, con `bin/java` (Linux/macOS) o `bin/java.exe` (Windows) dentro.
-
-### Windows / Linux (onedir)
-
-Coloque **`jre`** en la **misma carpeta** que el `.exe` (y `resumentpv_config.json` se guardará ahí también).
+Salida típica:
 
 ```text
-MiCarpetaPortable/
-  ResumenTPV.exe
-  _internal/
-  lib/
-  datos/
-  jre/
-    bin/
-      java.exe
-  resumentpv_config.json
+releases/
+  ResumenTPV-win-Setup.exe   ← asistente (términos + opciones)
+  ResumenTPV-*-full.nupkg
+  releases.win.json
 ```
 
-### macOS (`.app` en un USB)
+Nota: el `Setup.exe` nativo de Velopack es one-click (solo splash). Los textos `--instWelcome` / `--instLicense` aplican al MSI de Velopack, no a ese exe; por eso el asistente propio muestra términos y el checkbox de escritorio.
 
-Coloque **`jre`** en la **carpeta que contiene** `ResumenTPV.app` (no dentro del bundle), por ejemplo:
+Desinstalación: Windows abre `ResumenTPV.exe --uninstall-ui`, que lanza una UI en `%TEMP%` (PowerShell). Así sobrevive al cierre forzado de Velopack. Muestra progreso y solo habilita «Aceptar» al terminar `Update.exe --uninstall --silent`.
 
-```text
-MiUSB/
-  ResumenTPV.app
-  jre/
-    bin/
-      java
-  resumentpv_config.json
-```
+## CI
 
-Si instaló la app solo en `/Applications`, la configuración cae junto al binario dentro del `.app` (menos ideal); para un USB use la estructura anterior.
+Al publicar un GitHub Release, el workflow `.github/workflows/build.yml` ejecuta `scripts/pack.ps1` y sube assets con `vpk upload github`.
 
-El programa busca Java en este orden: `jre/bin/java` → `JAVA_HOME` → `PATH`.
+## Nota sobre macOS
 
-## Copiar a un USB
-
-Copie **toda** la carpeta generada en `dist/` (o el `.app` en macOS más `jre` si aplica). No hace falta instalar nada más que el JRE portátil opcional.
-
-## Tamaño
-
-- El JRE suma ~50–100 MB (según versión).
-- Polars y dependencias ya van en `_internal/`.
-
-## Desarrollo local (sin empaquetar)
-
-Sigue valiendo un `java` en el `PATH` o `JAVA_HOME`; la carpeta `jre/` junto al proyecto solo aplica si ejecuta el binario empaquetado o copia `jre` ahí para probar el mismo flujo que el USB.
+Esta app **no se ejecuta en macOS**. El desarrollo en Mac sirve para editar código; pruebas e instalador requieren Windows.

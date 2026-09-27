@@ -1,0 +1,7 @@
+Bienvenido a ResumenTPV
+
+Resumen diario de vales, cobros y artículos vendidos
+desde bases FactuSol / TPVSol (Access).
+
+Desarrollado por Mario P. Dev
+https://mariopdev.com
