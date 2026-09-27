@@ -20,11 +20,11 @@ Descarga ACE (Microsoft): busque «Microsoft Access Database Engine Redistributa
 ## Instalar (tienda)
 
 1. Abra [Releases](https://github.com/MarioP-Dev/Factusol-Resumen-TPV/releases/latest).
-2. Descargue **`ResumenTPV-win-Setup.exe`** (o el `*Setup.exe` del release).
-3. Ejecute el instalador.
+2. Descargue **`ResumenTPV-win-Setup.exe`**.
+3. Ejecute el asistente (bienvenida → términos → acceso directo opcional → instalar).
 4. Arranque ResumenTPV, elija el `.accdb` / `.mdb` y pulse «Usar y guardar».
 
-La configuración se guarda en `%LocalAppData%\ResumenTPV\` (no se pierde al actualizar).
+La configuración se guarda en `%LocalAppData%\MarioP.Dev\ResumenTPV\` (fuera de la carpeta del instalador Velopack, para no bloquear Setup).
 
 ### Actualizaciones OTA
 
@@ -49,13 +49,14 @@ Desde macOS se puede restaurar y compilar el targeting Windows (`EnableWindowsTa
 
 Localmente (Windows, con .NET 8 y `vpk`):
 
-```bash
+```powershell
 dotnet tool install -g vpk --version 1.2.158
-dotnet publish src/ResumenTPV -c Release -r win-x64 --self-contained true -o publish
-vpk pack --packId ResumenTPV --packVersion 0.3.0 --packDir publish --mainExe ResumenTPV.exe --runtime win-x64 --outputDir releases
+powershell -ExecutionPolicy Bypass -File scripts/pack.ps1
 ```
 
-El instalador queda en `releases/ResumenTPV-win-Setup.exe`.
+El instalador de distribución queda en `releases/ResumenTPV-win-Setup.exe` (asistente con términos y opción de acceso directo). Los `.nupkg` del mismo directorio alimentan las actualizaciones OTA.
+
+Icono: `src/ResumenTPV/Assets/app.ico`. Términos: `installer/TERMINOS.md`.
 
 ## Velopack
 

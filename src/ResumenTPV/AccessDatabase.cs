@@ -17,7 +17,16 @@ public static class AccessDatabase
         "Microsoft.Jet.OLEDB.4.0",
     ];
 
+    private static string? _cachedProvider;
+
     public static DataTable Query(string databasePath, string sql)
+    {
+        using var conn = OpenConnection(databasePath);
+        return Query(conn, sql);
+    }
+
+    /// <summary>Abre una conexión ACE/Jet reutilizable (el llamador debe disponerla).</summary>
+    public static OleDbConnection OpenConnection(string databasePath)
     {
         var fullPath = Path.GetFullPath(databasePath);
         if (!File.Exists(fullPath))
@@ -26,9 +35,12 @@ public static class AccessDatabase
         }
 
         Exception? lastError = null;
-        foreach (var provider in Providers)
+        var providers = _cachedProvider is null
+            ? Providers
+            : new[] { _cachedProvider }.Concat(Providers.Where(p => p != _cachedProvider));
+
+        foreach (var provider in providers)
         {
-            // Jet 4.0 solo aplica a .mdb antiguos.
             if (provider.Contains("Jet", StringComparison.OrdinalIgnoreCase)
                 && !fullPath.EndsWith(".mdb", StringComparison.OrdinalIgnoreCase))
             {
@@ -37,7 +49,9 @@ public static class AccessDatabase
 
             try
             {
-                return QueryWithProvider(provider, fullPath, sql);
+                var conn = CreateOpenConnection(provider, fullPath);
+                _cachedProvider = provider;
+                return conn;
             }
             catch (Exception ex) when (ex is OleDbException or InvalidOperationException)
             {
@@ -59,7 +73,16 @@ public static class AccessDatabase
         throw new InvalidOperationException(hint.ToString(), lastError);
     }
 
-    private static DataTable QueryWithProvider(string provider, string databasePath, string sql)
+    public static DataTable Query(OleDbConnection conn, string sql)
+    {
+        using var cmd = new OleDbCommand(sql, conn);
+        using var adapter = new OleDbDataAdapter(cmd);
+        var table = new DataTable();
+        adapter.Fill(table);
+        return table;
+    }
+
+    private static OleDbConnection CreateOpenConnection(string provider, string databasePath)
     {
         var cs = new OleDbConnectionStringBuilder
         {
@@ -68,13 +91,9 @@ public static class AccessDatabase
             PersistSecurityInfo = false,
         };
 
-        using var conn = new OleDbConnection(cs.ConnectionString);
+        var conn = new OleDbConnection(cs.ConnectionString);
         conn.Open();
-        using var cmd = new OleDbCommand(sql, conn);
-        using var adapter = new OleDbDataAdapter(cmd);
-        var table = new DataTable();
-        adapter.Fill(table);
-        return table;
+        return conn;
     }
 
     /// <summary>Filtro Inclusive/exclusive de un día calendario en sintaxis Access (#yyyy-MM-dd#).</summary>

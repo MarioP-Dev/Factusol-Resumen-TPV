@@ -12,6 +12,10 @@
     <AssemblyName>ResumenTPV</AssemblyName>
     <Version>0.3.0</Version>
     <Description>Resumen diario de vales, cobros y ventas desde bases FactuSol/TPVSol (Access).</Description>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <Authors>Mario P. Dev</Authors>
+    <Company>Mario P. Dev</Company>
+    <Product>ResumenTPV</Product>
   </PropertyGroup>
 
   <ItemGroup>

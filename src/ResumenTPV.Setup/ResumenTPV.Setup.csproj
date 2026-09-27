@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\ResumenTPV\Assets\app.ico</ApplicationIcon>
+    <RootNamespace>ResumenTPV.Setup</RootNamespace>
+    <AssemblyName>ResumenTPV-Setup</AssemblyName>
+    <Version>0.3.0</Version>
+    <Product>ResumenTPV</Product>
+    <Authors>Mario P. Dev</Authors>
+    <Company>Mario P. Dev</Company>
+    <Description>Asistente de instalación de ResumenTPV</Description>
+    <VelopackSetupPath Condition="'$(VelopackSetupPath)' == ''">..\..\releases\ResumenTPV-win-Setup.inner.exe</VelopackSetupPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\installer\TERMINOS.md" Link="TERMINOS.md" LogicalName="ResumenTPV.Setup.TERMINOS.md" />
+    <EmbeddedResource Include="..\..\installer\WELCOME.txt" Link="WELCOME.txt" LogicalName="ResumenTPV.Setup.WELCOME.txt" />
+    <EmbeddedResource Include="..\ResumenTPV\Assets\Logo_black.png" Link="Logo_black.png" LogicalName="ResumenTPV.Setup.Logo_black.png" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(VelopackSetupPath)')">
+    <EmbeddedResource Include="$(VelopackSetupPath)" LogicalName="ResumenTPV.Setup.VelopackSetup.exe" />
+  </ItemGroup>
+
+</Project>

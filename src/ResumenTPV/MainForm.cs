@@ -10,6 +10,7 @@ public sealed class MainForm : Form
     private readonly DateTimePicker _datePicker = new();
     private readonly Button _loadButton = new();
     private readonly ToolStripStatusLabel _statusLabel = new();
+    private readonly ToolStripProgressBar _statusProgress = new();
     private readonly ToolStripMenuItem _closeDbMenuItem = new();
     private readonly ToolStripMenuItem _updateMenuItem = new();
 
@@ -163,9 +164,15 @@ public sealed class MainForm : Form
         root.Controls.Add(content, 0, 2);
 
         var statusStrip = new StatusStrip();
+        _statusProgress.Visible = false;
+        _statusProgress.Style = ProgressBarStyle.Marquee;
+        _statusProgress.MarqueeAnimationSpeed = 30;
+        _statusProgress.Width = 140;
+        _statusProgress.Alignment = ToolStripItemAlignment.Right;
         _statusLabel.Spring = true;
         _statusLabel.TextAlign = ContentAlignment.MiddleLeft;
         statusStrip.Items.Add(_statusLabel);
+        statusStrip.Items.Add(_statusProgress);
         root.Controls.Add(statusStrip, 0, 3);
 
         Controls.Add(root);
@@ -569,16 +576,29 @@ public sealed class MainForm : Form
         {
             try
             {
-                var vales = ReportQueries.GetValesCreated(dbPath, day);
-                var pagos = ReportQueries.GetSalesByPaymentMethod(dbPath, day);
-                var articulos = ReportQueries.GetSoldItems(dbPath, day);
-                BeginInvoke(() => OnLoadSuccess(day, vales, pagos, articulos));
+                ReportStatus("Abriendo base Access…");
+                var report = ReportQueries.LoadDailyReport(dbPath, day);
+                BeginInvoke(() => OnLoadSuccess(day, report.Vales, report.Pagos, report.Articulos));
             }
             catch (Exception ex)
             {
                 BeginInvoke(() => OnLoadError(ex));
             }
         });
+    }
+
+    private void ReportStatus(string text)
+    {
+        try
+        {
+            if (IsHandleCreated)
+            {
+                BeginInvoke(() => SetStatus(text));
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+        }
     }
 
     private void OnLoadSuccess(DateOnly day, DataTable vales, DataTable pagos, DataTable articulos)
@@ -644,13 +664,12 @@ public sealed class MainForm : Form
 
     private void SetLoadingUi(bool loading)
     {
+        // No bloqueamos fecha ni menús: solo evitamos dobles cargas y mostramos progreso.
         _loadButton.Enabled = !loading && !_updating;
-        _updateMenuItem.Enabled = !loading && !_updating;
-        _datePicker.Enabled = !loading && !_updating;
-
+        _statusProgress.Visible = loading;
         if (loading)
         {
-            SetStatus("Cargando…");
+            SetStatus("Cargando datos…");
         }
     }
 

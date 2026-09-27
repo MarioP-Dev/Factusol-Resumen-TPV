@@ -1,4 +1,4 @@
-# Build + empaquetado Velopack (instalador + OTA)
+# Build + empaquetado Velopack (instalador asistente + OTA)
 name: Build
 
 on:
@@ -35,18 +35,6 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Versión: $version"
 
-      - name: Restore y publish win-x64
-        shell: bash
-        run: |
-          set -e
-          dotnet restore ResumenTPV.sln
-          dotnet publish src/ResumenTPV/ResumenTPV.csproj \
-            -c Release \
-            -r win-x64 \
-            --self-contained true \
-            -p:Version=${{ steps.get-version.outputs.version }} \
-            -o publish
-
       - name: Instalar vpk (misma versión que el paquete NuGet)
         shell: bash
         run: dotnet tool install -g vpk --version 1.2.158
@@ -60,17 +48,10 @@ jobs:
             --token "${{ secrets.GITHUB_TOKEN }}" \
             || true
 
-      - name: Empaquetar con Velopack
-        shell: bash
+      - name: Empaquetar (asistente + OTA)
+        shell: pwsh
         run: |
-          vpk pack \
-            --packId ResumenTPV \
-            --packVersion "${{ steps.get-version.outputs.version }}" \
-            --packDir publish \
-            --mainExe ResumenTPV.exe \
-            --packTitle "ResumenTPV" \
-            --runtime win-x64 \
-            --outputDir releases
+          ./scripts/pack.ps1 -Version "${{ steps.get-version.outputs.version }}"
 
       - name: Subir artefactos de build
         uses: actions/upload-artifact@v4

@@ -6,68 +6,84 @@ namespace ResumenTPV;
 /// <summary>Consultas del resumen diario FactuSol / TPVSol.</summary>
 public static class ReportQueries
 {
+    public sealed record DailyReport(DataTable Vales, DataTable Pagos, DataTable Articulos);
+
+    /// <summary>Carga vales, cobros y artículos con una sola conexión ACE.</summary>
+    public static DailyReport LoadDailyReport(string databasePath, DateOnly day)
+    {
+        using var conn = AccessDatabase.OpenConnection(databasePath);
+        var vales = AccessDatabase.Query(conn, BuildValesSql(day));
+        var pagosRaw = AccessDatabase.Query(conn, BuildPagosSql(day));
+        var articulos = AccessDatabase.Query(conn, BuildArticulosSql(day));
+        return new DailyReport(vales, NormalizePaymentMethods(pagosRaw), articulos);
+    }
+
     public static DataTable GetValesCreated(string databasePath, DateOnly day)
     {
-        var sql = $"""
-            SELECT
-                CODANT,
-                FECANT,
-                IMPANT,
-                OBSANT
-            FROM F_ANT
-            WHERE {AccessDatabase.AccessDateRangeSql("FECANT", day)}
-            ORDER BY CODANT
-            """;
-        return AccessDatabase.Query(databasePath, sql);
+        using var conn = AccessDatabase.OpenConnection(databasePath);
+        return AccessDatabase.Query(conn, BuildValesSql(day));
     }
 
     public static DataTable GetSalesByPaymentMethod(string databasePath, DateOnly day)
     {
-        var sql = $"""
-            SELECT
-                c.CPTCOB AS METODO_PAGO,
-                COUNT(*) AS NUM_COBROS,
-                SUM(c.IMPCOB) AS TOTAL_COBRADO
-            FROM F_COB c
-            WHERE {AccessDatabase.AccessDateRangeSql("c.FECCOB", day)}
-            GROUP BY
-                c.CPTCOB
-            ORDER BY
-                c.CPTCOB
-            """;
-
-        var raw = AccessDatabase.Query(databasePath, sql);
-        return NormalizePaymentMethods(raw);
+        using var conn = AccessDatabase.OpenConnection(databasePath);
+        return NormalizePaymentMethods(AccessDatabase.Query(conn, BuildPagosSql(day)));
     }
 
     public static DataTable GetSoldItems(string databasePath, DateOnly day)
     {
-        var sql = $"""
-            SELECT
-                l.ARTLFA,
-                l.DESLFA,
-                l.CE1LFA AS TALLA,
-                l.CE2LFA AS COLOR,
-                SUM(l.CANLFA) AS CANTIDAD_TOTAL,
-                SUM(l.TOTLFA) AS IMPORTE_TOTAL
-            FROM F_FAC f
-            INNER JOIN F_LFA l
-                ON f.TIPFAC = l.TIPLFA
-               AND f.CODFAC = l.CODLFA
-            WHERE {AccessDatabase.AccessDateRangeSql("f.FECFAC", day)}
-            GROUP BY
-                l.ARTLFA,
-                l.DESLFA,
-                l.CE1LFA,
-                l.CE2LFA,
-                l.TCOLFA
-            ORDER BY
-                l.DESLFA,
-                l.CE1LFA,
-                l.CE2LFA
-            """;
-        return AccessDatabase.Query(databasePath, sql);
+        using var conn = AccessDatabase.OpenConnection(databasePath);
+        return AccessDatabase.Query(conn, BuildArticulosSql(day));
     }
+
+    private static string BuildValesSql(DateOnly day) => $"""
+        SELECT
+            CODANT,
+            FECANT,
+            IMPANT,
+            OBSANT
+        FROM F_ANT
+        WHERE {AccessDatabase.AccessDateRangeSql("FECANT", day)}
+        ORDER BY CODANT
+        """;
+
+    private static string BuildPagosSql(DateOnly day) => $"""
+        SELECT
+            c.CPTCOB AS METODO_PAGO,
+            COUNT(*) AS NUM_COBROS,
+            SUM(c.IMPCOB) AS TOTAL_COBRADO
+        FROM F_COB c
+        WHERE {AccessDatabase.AccessDateRangeSql("c.FECCOB", day)}
+        GROUP BY
+            c.CPTCOB
+        ORDER BY
+            c.CPTCOB
+        """;
+
+    private static string BuildArticulosSql(DateOnly day) => $"""
+        SELECT
+            l.ARTLFA,
+            l.DESLFA,
+            l.CE1LFA AS TALLA,
+            l.CE2LFA AS COLOR,
+            SUM(l.CANLFA) AS CANTIDAD_TOTAL,
+            SUM(l.TOTLFA) AS IMPORTE_TOTAL
+        FROM F_FAC f
+        INNER JOIN F_LFA l
+            ON f.TIPFAC = l.TIPLFA
+           AND f.CODFAC = l.CODLFA
+        WHERE {AccessDatabase.AccessDateRangeSql("f.FECFAC", day)}
+        GROUP BY
+            l.ARTLFA,
+            l.DESLFA,
+            l.CE1LFA,
+            l.CE2LFA,
+            l.TCOLFA
+        ORDER BY
+            l.DESLFA,
+            l.CE1LFA,
+            l.CE2LFA
+        """;
 
     /// <summary>Agrupa conceptos CPTCOB que empiezan por VALE bajo la etiqueta VALES.</summary>
     private static DataTable NormalizePaymentMethods(DataTable raw)

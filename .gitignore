@@ -20,6 +20,7 @@ TestResults/
 build/
 dist/
 publish/
+publish-setup/
 releases/
 
 # =========================

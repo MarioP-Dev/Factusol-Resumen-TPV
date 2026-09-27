@@ -3,7 +3,9 @@ using System.Text.Json;
 namespace ResumenTPV;
 
 /// <summary>
-/// Persistencia de la ruta a la base Access en LocalAppData (sobrevive a actualizaciones Velopack).
+/// Persistencia de la ruta a la base Access en LocalAppData.
+/// Nota: no usar la carpeta del packId de Velopack (%LocalAppData%\ResumenTPV),
+/// porque el instalador la necesita vacía / propia (current, Update.exe).
 /// </summary>
 public static class AppConfig
 {
@@ -22,20 +24,29 @@ public static class AppConfig
         }
     }
 
-    /// <summary>Datos de usuario que deben persistir entre versiones.</summary>
+    /// <summary>
+    /// Datos de usuario fuera del directorio de instalación Velopack.
+    /// </summary>
     public static string DataDirectory
     {
         get
         {
             var dir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppUpdates.PackId);
+                "MarioP.Dev",
+                "ResumenTPV");
             Directory.CreateDirectory(dir);
             return dir;
         }
     }
 
     private static string ConfigPath => Path.Combine(DataDirectory, ConfigFileName);
+
+    /// <summary>Antigua ruta que chocaba con el packId de Velopack.</summary>
+    private static string LegacyVelopackConflictConfigPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        AppUpdates.PackId,
+        ConfigFileName);
 
     private static void MigrateLegacyConfigIfNeeded()
     {
@@ -46,6 +57,7 @@ public static class AppConfig
 
         foreach (var candidate in new[]
                  {
+                     LegacyVelopackConflictConfigPath,
                      Path.Combine(AppDirectory, ConfigFileName),
                      Path.Combine(AppDirectory, LegacyConfigFileName),
                      Path.Combine(Environment.CurrentDirectory, ConfigFileName),
@@ -59,6 +71,7 @@ public static class AppConfig
 
             try
             {
+                Directory.CreateDirectory(DataDirectory);
                 File.Copy(candidate, ConfigPath, overwrite: false);
             }
             catch
