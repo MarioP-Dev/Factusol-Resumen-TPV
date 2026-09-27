@@ -11,6 +11,7 @@ public sealed class MainForm : Form
     private readonly Button _loadButton = new();
     private readonly ToolStripStatusLabel _statusLabel = new();
     private readonly ToolStripProgressBar _statusProgress = new();
+    private StatusStrip? _statusStrip;
     private readonly ToolStripMenuItem _closeDbMenuItem = new();
     private readonly ToolStripMenuItem _updateMenuItem = new();
 
@@ -54,15 +55,14 @@ public sealed class MainForm : Form
         if (string.IsNullOrWhiteSpace(_databasePath) || !File.Exists(_databasePath))
         {
             SetStatus("Elija la base Access con Archivo → Abrir FactuSol DB…");
+            Shown += (_, _) => BeginSilentUpdateCheck();
         }
         else
         {
-            SetStatus("Listo. Pulse «Cargar datos» o Enter para actualizar.");
-            Shown += (_, _) => BeginLoad();
-        }
-
-        Shown += (_, _) => BeginSilentUpdateCheck();
-    }
+            SetStatus("Preparando carga de datos…");
+            // BeginInvoke: pintar la ventana y el marquee antes de tocar ACE.
+            Shown += (_, _) => BeginInvoke(BeginLoad);
+        }    }
 
     private void BuildLayout()
     {
@@ -163,17 +163,23 @@ public sealed class MainForm : Form
         content.Controls.Add(CreateSection(_articulosTitle, _articulosGrid), 0, 1);
         root.Controls.Add(content, 0, 2);
 
-        var statusStrip = new StatusStrip();
-        _statusProgress.Visible = false;
-        _statusProgress.Style = ProgressBarStyle.Marquee;
-        _statusProgress.MarqueeAnimationSpeed = 30;
-        _statusProgress.Width = 140;
+        _statusStrip = new StatusStrip
+        {
+            SizingGrip = false,
+            ShowItemToolTips = true,
+        };
+        _statusProgress.AutoSize = false;
+        _statusProgress.Width = 160;
         _statusProgress.Alignment = ToolStripItemAlignment.Right;
+        _statusProgress.Style = ProgressBarStyle.Marquee;
+        _statusProgress.MarqueeAnimationSpeed = 0;
+        // Visible siempre: ocultar/mostrar ToolStripProgressBar a veces no repinta el marquee.
+        _statusProgress.Visible = true;
         _statusLabel.Spring = true;
         _statusLabel.TextAlign = ContentAlignment.MiddleLeft;
-        statusStrip.Items.Add(_statusLabel);
-        statusStrip.Items.Add(_statusProgress);
-        root.Controls.Add(statusStrip, 0, 3);
+        _statusStrip.Items.Add(_statusLabel);
+        _statusStrip.Items.Add(_statusProgress);
+        root.Controls.Add(_statusStrip, 0, 3);
 
         Controls.Add(root);
         var menu = BuildMenuStrip();
@@ -572,28 +578,41 @@ public sealed class MainForm : Form
         _loading = true;
         SetLoadingUi(true);
 
-        _ = Task.Run(() =>
+        _ = LoadReportAsync(dbPath, day);
+    }
+
+    private async Task LoadReportAsync(string dbPath, DateOnly day)
+    {
+        try
         {
-            try
-            {
-                ReportStatus("Abriendo base Access…");
-                var report = ReportQueries.LoadDailyReport(dbPath, day);
-                BeginInvoke(() => OnLoadSuccess(day, report.Vales, report.Pagos, report.Articulos));
-            }
-            catch (Exception ex)
-            {
-                BeginInvoke(() => OnLoadError(ex));
-            }
-        });
+            // STA propio: evita que OleDb/COM congele el hilo de la UI.
+            var report = await StaTask.Run(() =>
+                ReportQueries.LoadDailyReport(dbPath, day, ReportStatus)).ConfigureAwait(true);
+
+            OnLoadSuccess(day, report.Vales, report.Pagos, report.Articulos);
+        }
+        catch (Exception ex)
+        {
+            OnLoadError(ex);
+        }
     }
 
     private void ReportStatus(string text)
     {
         try
         {
-            if (IsHandleCreated)
+            if (!IsHandleCreated || IsDisposed)
+            {
+                return;
+            }
+
+            if (InvokeRequired)
             {
                 BeginInvoke(() => SetStatus(text));
+            }
+            else
+            {
+                SetStatus(text);
             }
         }
         catch (ObjectDisposedException)
@@ -614,6 +633,8 @@ public sealed class MainForm : Form
         var totalCobrado = SumDecimal(pagos, "TOTAL_COBRADO");
         SetStatus(
             $"Listo. {day:yyyy-MM-dd} — {vales.Rows.Count} vales, cobrado {totalCobrado:N2} €, {articulos.Rows.Count} líneas de artículo");
+
+        BeginSilentUpdateCheck();
     }
 
     private void OnLoadError(Exception ex)
@@ -622,6 +643,7 @@ public sealed class MainForm : Form
         _loading = false;
         SetStatus("Error al cargar. Revise el mensaje o vuelva a intentar.");
         MessageBox.Show(this, ex.Message, "Error al cargar datos", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        BeginSilentUpdateCheck();
     }
 
     private void UpdateKpis(DataTable vales, DataTable pagos, DataTable articulos)
@@ -664,13 +686,24 @@ public sealed class MainForm : Form
 
     private void SetLoadingUi(bool loading)
     {
-        // No bloqueamos fecha ni menús: solo evitamos dobles cargas y mostramos progreso.
+        // No bloqueamos la ventana: solo evitamos dobles cargas y mostramos marquee abajo.
         _loadButton.Enabled = !loading && !_updating;
-        _statusProgress.Visible = loading;
+        _datePicker.Enabled = !loading;
+
         if (loading)
         {
+            _statusProgress.Style = ProgressBarStyle.Marquee;
+            _statusProgress.MarqueeAnimationSpeed = 30;
             SetStatus("Cargando datos…");
         }
+        else
+        {
+            _statusProgress.MarqueeAnimationSpeed = 0;
+            _statusProgress.Style = ProgressBarStyle.Continuous;
+            _statusProgress.Value = 0;
+        }
+
+        _statusStrip?.Refresh();
     }
 
     private void SetStatus(string text) => _statusLabel.Text = text;

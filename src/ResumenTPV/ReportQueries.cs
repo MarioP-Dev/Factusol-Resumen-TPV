@@ -9,12 +9,24 @@ public static class ReportQueries
     public sealed record DailyReport(DataTable Vales, DataTable Pagos, DataTable Articulos);
 
     /// <summary>Carga vales, cobros y artículos con una sola conexión ACE.</summary>
-    public static DailyReport LoadDailyReport(string databasePath, DateOnly day)
+    public static DailyReport LoadDailyReport(
+        string databasePath,
+        DateOnly day,
+        Action<string>? status = null)
     {
+        status?.Invoke("Abriendo base Access…");
         using var conn = AccessDatabase.OpenConnection(databasePath);
+
+        status?.Invoke("Leyendo vales…");
         var vales = AccessDatabase.Query(conn, BuildValesSql(day));
+
+        status?.Invoke("Leyendo cobros…");
         var pagosRaw = AccessDatabase.Query(conn, BuildPagosSql(day));
+
+        status?.Invoke("Leyendo artículos…");
         var articulos = AccessDatabase.Query(conn, BuildArticulosSql(day));
+
+        status?.Invoke("Preparando resumen…");
         return new DailyReport(vales, NormalizePaymentMethods(pagosRaw), articulos);
     }
 
